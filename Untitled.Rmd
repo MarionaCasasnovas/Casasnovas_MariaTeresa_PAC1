@@ -1,0 +1,84 @@
+---
+title: "Untitled"
+output: html_document
+---
+```{r}
+library(SummarizedExperiment)
+library(readxl)
+
+#Carregar els arxius
+GastricCancer_Data <- read_excel("GastricCancer_NMR.xlsx", sheet = "Data")
+GastricCancer_Peak <- read_excel("GastricCancer_NMR.xlsx", sheet = "Peak")
+
+#Eliminar les columnes que no ens interesse
+GastricCancer_Data <- GastricCancer_Data[, -c(1:4)]
+GastricCancer_Peak <- GastricCancer_Peak[, -1]
+
+#Substituir NA per la mitjana de cada columna
+GastricCancer_Data [] <- lapply(GastricCancer_Data , function(x) {
+  mean_val <- mean(x, na.rm = TRUE)
+  x[is.na(x)] <- mean_val
+  return(x)
+})
+
+#Modificar el format de les dades
+Data <- as.matrix(GastricCancer_Data)
+colData <- as.data.frame(GastricCancer_Peak)
+
+#Crear SummarizedExperiment
+se <- SummarizedExperiment(assay=list(Data=Data),
+                           colData=colData)
+
+#Visualitzar les classes
+se
+
+class(assays(se)$Data)
+class(colData(se))
+
+dim(assays(se)$Data)
+dim(colData(se))
+
+colnames(assays(se)$Data)
+colnames(colData(se))
+
+head(colData(se))
+head(assays(se)$Data)
+
+summary(assays(se)$Data)
+
+#Histograma de cada mostra
+hist(assays(se)$Data[,1], main="Sample_1")
+
+#Histograma de cada metabòlit
+hist(assays(se)$Data[1,], main="M1")
+
+#Matriu de covariança de les dades centrades
+DataNum <- scale(assays(se)$Data, center = TRUE, scale=FALSE)
+apply(DataNum,2, mean)
+n<- dim(assays(se)$Data)[1]
+S<-cov(DataNum)*(n-1)/n
+#show(S)
+
+#Matriu de correlacions
+R<-cor(DataNum)
+#show(R)
+
+#Calcul de valors propis
+EIG <- eigen(S)
+#show(EIG)
+
+#Multiplicam la matriu original per la matriu de vectors propis
+eigenVecs1 <- EIG$vectors
+PCAS1 <- DataNum %*% eigenVecs1
+head(PCAS1)
+
+#Representació PCA 1 i 2
+plot(PCAS1[,1], PCAS1[,2], main = "Metabòlits 2 primeres PCs")
+
+#Percentatges de variabilitat
+vars1<- EIG$values/sum(EIG$values)
+round(vars1,3)
+xlabel <- paste("PCA1 ", round(vars1[1]*100, 2),"%" )
+ylabel <- paste("PCA2 ", round(vars1[2]*100,2),"%" )
+plot(PCAS1[,1], PCAS1[,2], main = "Metabòlits 2 primeres PCs",
+     xlab=xlabel, ylab=ylabel)
